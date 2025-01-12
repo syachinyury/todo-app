@@ -14,7 +14,7 @@ const app = express();
 // Update CORS to handle multiple origins
 const allowedOrigins = [
   'http://localhost:5500',
-  'https://todo-frontend-git-main-yurys-projects-4d94c1a9.vercel.app'
+  'https://todo-frontend-self-120125.vercel.app'
 ];
 
 app.use(cors({
