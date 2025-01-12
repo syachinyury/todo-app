@@ -14,7 +14,7 @@ const app = express();
 // Update CORS to handle multiple origins
 const allowedOrigins = [
   'http://localhost:5500',
-  'https://your-frontend-url.vercel.app', // We'll add this after FE deployment
+  'https://todo-frontend-git-main-yurys-projects-4d94c1a9.vercel.app'
 ];
 
 app.use(cors({
