@@ -52,9 +52,11 @@ const connectDB = async () => {
     });
     console.log('Connected to MongoDB');
   } catch (err) {
-    console.error('MongoDB connection error:', err);
-    // Retry connection after 5 seconds
-    setTimeout(connectDB, 5000);
+    console.error('Detailed MongoDB connection error:', err);
+    // Don't exit in production
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 };
 
@@ -77,13 +79,23 @@ mongoose.connection.on('reconnected', () => {
 app.get('/', async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const envVars = {
+      hasMongoUri: !!process.env.MONGODB_URI,
+      hasGoogleId: !!process.env.GOOGLE_CLIENT_ID,
+      hasGoogleSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasSessionSecret: !!process.env.SESSION_SECRET,
+      hasFrontendUrl: !!process.env.FRONTEND_URL,
+      nodeEnv: process.env.NODE_ENV
+    };
+    
     res.json({ 
       message: 'Todo List API is running',
       database: dbStatus,
-      env: process.env.NODE_ENV
+      environment: envVars
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Root route error:', error);
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 });
 
