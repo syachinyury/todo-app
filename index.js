@@ -67,6 +67,11 @@ mongoose.connection.on('reconnected', () => {
   console.log('MongoDB reconnected');
 });
 
+// Add a root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Todo List API is running' });
+});
+
 // Routes
 app.use('/auth', authRouter);
 app.use('/tasks', taskRouter);
