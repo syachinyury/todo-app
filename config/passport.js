@@ -14,7 +14,7 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: process.env.NODE_ENV === 'production'
-      ? "https://todo-list-6301x8txk-yurys-projects-4d94c1a9.vercel.app/auth/google/callback"
+      ? "https://todo-list-4c87zfhbg-yurys-projects-4d94c1a9.vercel.app/auth/google/callback"
       : "http://localhost:3000/auth/google/callback"
   },
   async function(accessToken, refreshToken, profile, done) {
