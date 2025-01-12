@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import crypto from 'crypto';
 import { User } from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
@@ -11,25 +12,13 @@ router.get('/google',
 
 router.get('/google/callback', 
   passport.authenticate('google', { failureRedirect: '/login' }),
-  async (req, res) => {
-    try {
-      // Generate session token
-      const sessionToken = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  (req, res) => {
+    // Create JWT token
+    const token = jwt.sign({ userId: req.user._id }, process.env.SESSION_SECRET);
+    const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365); // 1 year
 
-      // Save session
-      req.user.sessions.push({
-        token: sessionToken,
-        expiresAt
-      });
-      await req.user.save();
-
-      // Redirect to frontend with token
-      res.redirect(`http://localhost:5500/index.html?token=${sessionToken}&expires=${expiresAt.toISOString()}`);
-    } catch (error) {
-      console.error('Auth error:', error);
-      res.redirect('/login?error=auth_failed');
-    }
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL}/index.html?token=${token}&expires=${expires.toISOString()}`);
   }
 );
 
