@@ -17,8 +17,12 @@ router.get('/google/callback',
     const token = jwt.sign({ userId: req.user._id }, process.env.SESSION_SECRET);
     const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365); // 1 year
 
-    // Redirect to frontend with token
-    res.redirect(`${process.env.FRONTEND_URL}/index.html?token=${token}&expires=${expires.toISOString()}`);
+    // Redirect to frontend with token (fix the URL structure)
+    const redirectUrl = new URL('/index.html', process.env.FRONTEND_URL);
+    redirectUrl.searchParams.set('token', token);
+    redirectUrl.searchParams.set('expires', expires.toISOString());
+    
+    res.redirect(redirectUrl.toString());
   }
 );
 
