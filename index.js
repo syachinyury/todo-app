@@ -41,18 +41,24 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Improved MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
-});
+// Improved MongoDB connection with retry logic
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    // Retry connection after 5 seconds
+    setTimeout(connectDB, 5000);
+  }
+};
+
+connectDB();
 
 // Handle MongoDB connection errors
 mongoose.connection.on('error', err => {
@@ -68,8 +74,17 @@ mongoose.connection.on('reconnected', () => {
 });
 
 // Add a root route
-app.get('/', (req, res) => {
-  res.json({ message: 'Todo List API is running' });
+app.get('/', async (req, res) => {
+  try {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({ 
+      message: 'Todo List API is running',
+      database: dbStatus,
+      env: process.env.NODE_ENV
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Routes
