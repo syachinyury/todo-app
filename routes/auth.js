@@ -12,6 +12,7 @@ router.get('/google',
 
 router.get('/google/callback', 
   (req, res, next) => {
+    console.log('Starting OAuth callback');
     passport.authenticate('google', { 
       failureRedirect: '/login',
       session: false
@@ -19,6 +20,12 @@ router.get('/google/callback',
   },
   async (req, res) => {
     try {
+      console.log('User data:', {
+        id: req.user?._id,
+        email: req.user?.email,
+        name: req.user?.name
+      });
+
       // Debug logs
       console.log('Environment check:', {
         FRONTEND_URL: process.env.FRONTEND_URL,
@@ -41,6 +48,11 @@ router.get('/google/callback',
         { expiresIn: '1y' }
       );
       
+      console.log('Token created:', {
+        tokenStart: token.substring(0, 20),
+        secret: process.env.SESSION_SECRET?.substring(0, 5)
+      });
+
       const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365);
 
       // Construct URL with error handling
@@ -71,7 +83,9 @@ router.get('/google/callback',
       console.error('Detailed auth callback error:', {
         message: error.message,
         stack: error.stack,
-        frontendUrl: process.env.FRONTEND_URL
+        frontendUrl: process.env.FRONTEND_URL,
+        hasUser: !!req.user,
+        hasSecret: !!process.env.SESSION_SECRET
       });
 
       res.status(500).json({ 
