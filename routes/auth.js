@@ -58,7 +58,14 @@ router.get('/google/callback',
       redirectUrl.searchParams.set('token', token);
       redirectUrl.searchParams.set('expires', expires.toISOString());
       
-      console.log('Redirecting to:', redirectUrl.toString());
+      console.log('Final redirect URL:', {
+        url: redirectUrl.toString(),
+        params: {
+          token: token.substring(0, 20) + '...',
+          expires: expires
+        }
+      });
+      
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Detailed auth callback error:', {
