@@ -20,13 +20,14 @@ router.get('/google/callback',
   async (req, res) => {
     try {
       // Debug logs
-      console.log('User from request:', req.user);
-      console.log('Session:', req.session);
-      console.log('Environment:', {
-        NODE_ENV: process.env.NODE_ENV,
+      console.log('Environment check:', {
         FRONTEND_URL: process.env.FRONTEND_URL,
-        hasSessionSecret: !!process.env.SESSION_SECRET
+        NODE_ENV: process.env.NODE_ENV
       });
+
+      if (!process.env.FRONTEND_URL) {
+        throw new Error('FRONTEND_URL environment variable is not set');
+      }
 
       if (!req.user) {
         console.error('No user found in request');
@@ -42,30 +43,33 @@ router.get('/google/callback',
       
       const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365);
 
-      // Log before redirect
-      console.log('Redirecting to:', {
-        userId: req.user._id,
-        frontendUrl: process.env.FRONTEND_URL,
-        tokenLength: token.length
-      });
+      // Construct URL with error handling
+      let redirectUrl;
+      try {
+        redirectUrl = new URL('/index.html', process.env.FRONTEND_URL);
+      } catch (urlError) {
+        console.error('URL construction error:', {
+          FRONTEND_URL: process.env.FRONTEND_URL,
+          error: urlError.message
+        });
+        throw new Error(`Invalid FRONTEND_URL: ${process.env.FRONTEND_URL}`);
+      }
 
-      const redirectUrl = new URL('/index.html', process.env.FRONTEND_URL);
       redirectUrl.searchParams.set('token', token);
       redirectUrl.searchParams.set('expires', expires.toISOString());
       
+      console.log('Redirecting to:', redirectUrl.toString());
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Detailed auth callback error:', {
         message: error.message,
         stack: error.stack,
-        user: req.user,
-        session: req.session
+        frontendUrl: process.env.FRONTEND_URL
       });
 
       res.status(500).json({ 
         error: 'Authentication failed',
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: error.message
       });
     }
   }
