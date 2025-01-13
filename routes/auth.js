@@ -11,12 +11,28 @@ router.get('/google',
 );
 
 router.get('/google/callback', 
-  passport.authenticate('google', { 
-    failureRedirect: '/login',
-    session: false // Important for JWT strategy
-  }),
+  (req, res, next) => {
+    passport.authenticate('google', { 
+      failureRedirect: '/login',
+      session: false
+    })(req, res, next);
+  },
   async (req, res) => {
     try {
+      // Debug logs
+      console.log('User from request:', req.user);
+      console.log('Session:', req.session);
+      console.log('Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        FRONTEND_URL: process.env.FRONTEND_URL,
+        hasSessionSecret: !!process.env.SESSION_SECRET
+      });
+
+      if (!req.user) {
+        console.error('No user found in request');
+        return res.status(401).json({ error: 'Authentication failed - No user found' });
+      }
+
       // Create JWT token
       const token = jwt.sign(
         { userId: req.user._id }, 
@@ -24,22 +40,28 @@ router.get('/google/callback',
         { expiresIn: '1y' }
       );
       
-      const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365); // 1 year
+      const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365);
 
-      // Log for debugging
-      console.log('Auth callback:', {
+      // Log before redirect
+      console.log('Redirecting to:', {
         userId: req.user._id,
-        frontendUrl: process.env.FRONTEND_URL
+        frontendUrl: process.env.FRONTEND_URL,
+        tokenLength: token.length
       });
 
-      // Redirect to frontend with token
       const redirectUrl = new URL('/index.html', process.env.FRONTEND_URL);
       redirectUrl.searchParams.set('token', token);
       redirectUrl.searchParams.set('expires', expires.toISOString());
       
       res.redirect(redirectUrl.toString());
     } catch (error) {
-      console.error('Auth callback error:', error);
+      console.error('Detailed auth callback error:', {
+        message: error.message,
+        stack: error.stack,
+        user: req.user,
+        session: req.session
+      });
+
       res.status(500).json({ 
         error: 'Authentication failed',
         details: error.message,
