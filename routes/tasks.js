@@ -1,43 +1,53 @@
 import express from 'express';
 import { Task } from '../models/Task.js';
 import { User } from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
 // Middleware to verify auth token
-async function authMiddleware(req, res, next) {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    console.log('Received token:', token); // Debug log
-    
-    if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
-    }
-
+const authenticateToken = async (req, res, next) => {
     try {
-        const user = await User.findOne({
-            'sessions.token': token,
-            'sessions.expiresAt': { $gt: new Date() }
-        });
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
 
-        console.log('Found user:', user ? user.email : 'none'); // Debug log
-
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+        if (!token) {
+            console.log('No token provided');
+            return res.status(401).json({ error: 'No token provided' });
         }
 
-        req.userId = user._id;
+        // Add debug log
+        console.log('Verifying token:', {
+            tokenStart: token.substring(0, 20),
+            hasSecret: !!process.env.SESSION_SECRET
+        });
+
+        const decoded = jwt.verify(token, process.env.SESSION_SECRET);
+        
+        // Add debug log
+        console.log('Token verified, finding user:', decoded);
+
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            console.log('User not found for token');
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        req.user = user;
         next();
     } catch (error) {
-        console.error('Auth error:', error); // Debug log
-        res.status(500).json({ error: 'Authentication failed' });
+        console.error('Token verification error:', {
+            message: error.message,
+            name: error.name
+        });
+        res.status(401).json({ error: 'Invalid token' });
     }
-}
+};
 
 // Get all tasks
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        const tasks = await Task.find({ userId: req.userId });
+        const tasks = await Task.find({ userId: req.user._id });
         res.json(tasks);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch tasks' });
@@ -45,11 +55,11 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Create task
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
         const task = new Task({
             ...req.body,
-            userId: req.userId
+            userId: req.user._id
         });
         await task.save();
         res.status(201).json(task);
@@ -59,9 +69,9 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Toggle task completion
-router.put('/:taskId/toggle', authMiddleware, async (req, res) => {
+router.put('/:taskId/toggle', authenticateToken, async (req, res) => {
     try {
-        const task = await Task.findOne({ _id: req.params.taskId, userId: req.userId });
+        const task = await Task.findOne({ _id: req.params.taskId, userId: req.user._id });
         if (!task) {
             return res.status(404).json({ error: 'Task not found' });
         }
@@ -75,9 +85,9 @@ router.put('/:taskId/toggle', authMiddleware, async (req, res) => {
 });
 
 // Delete task
-router.delete('/:taskId', authMiddleware, async (req, res) => {
+router.delete('/:taskId', authenticateToken, async (req, res) => {
     try {
-        const task = await Task.findOneAndDelete({ _id: req.params.taskId, userId: req.userId });
+        const task = await Task.findOneAndDelete({ _id: req.params.taskId, userId: req.user._id });
         if (!task) {
             return res.status(404).json({ error: 'Task not found' });
         }
@@ -88,9 +98,9 @@ router.delete('/:taskId', authMiddleware, async (req, res) => {
 });
 
 // Add subtask
-router.post('/:taskId/subtasks', authMiddleware, async (req, res) => {
+router.post('/:taskId/subtasks', authenticateToken, async (req, res) => {
     try {
-        const task = await Task.findOne({ _id: req.params.taskId, userId: req.userId });
+        const task = await Task.findOne({ _id: req.params.taskId, userId: req.user._id });
         if (!task) {
             return res.status(404).json({ error: 'Task not found' });
         }
@@ -107,9 +117,9 @@ router.post('/:taskId/subtasks', authMiddleware, async (req, res) => {
 });
 
 // Toggle subtask completion
-router.put('/:taskId/subtasks/:subtaskId/toggle', authMiddleware, async (req, res) => {
+router.put('/:taskId/subtasks/:subtaskId/toggle', authenticateToken, async (req, res) => {
     try {
-        const task = await Task.findOne({ _id: req.params.taskId, userId: req.userId });
+        const task = await Task.findOne({ _id: req.params.taskId, userId: req.user._id });
         if (!task) {
             return res.status(404).json({ error: 'Task not found' });
         }
